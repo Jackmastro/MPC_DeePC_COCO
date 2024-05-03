@@ -46,6 +46,8 @@ def simulate(basal_handler,
     # Return the results
     return glucose, i, insulin_bolus, m, time
 
+
+
 def standard_bolus_calculator(glucose, meal_announcement, meal_type, hypotreatments, bolus, basal, time,
                                       time_index, dss):
 
