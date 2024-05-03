@@ -12,7 +12,7 @@ def simulate(basal_handler,
     # We give the data as a variable to the simulation
     data = data_given
     
-    data.t = pd.to_datetime(data['t'])
+    data.t = pd.to_datetime(data['t'], format='mixed')
 
     #Modulate CHO if needed
     data.cho = data.cho * meal_input_modulation_factor
