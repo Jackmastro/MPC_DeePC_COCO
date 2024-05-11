@@ -4,10 +4,10 @@ from py_replay_bg.py_replay_bg import ReplayBG
 from datetime import datetime, timedelta
 import numpy as np
 
-def simulate(basal_handler,
-       basal_handler_params, data_given,
-           meal_input_modulation_factor=1):
-
+def simulate(basal_handler:callable,
+             basal_handler_params:dict,
+             data_given:pd.DataFrame,
+             meal_input_modulation_factor:int=1):
 
     # We give the data as a variable to the simulation
     data = data_given
@@ -19,17 +19,29 @@ def simulate(basal_handler,
 
     # Set other parameters for identification
     modality = 'replay'
-    bw = 62
+    bw = 62 # body
     scenario = 'multi-meal'
     # scenario = 'single-meal'
     save_name = 'patient'
     save_suffix = ''
     save_folder = os.path.abspath('')
     # Instantiate ReplayBG
-    rbg = ReplayBG(modality=modality, data=data, bw=bw, scenario=scenario, save_name=save_name, save_folder=save_folder, save_suffix=save_suffix,
-                   cgm_model='IG', analyze_results=False, verbose=False, plot_mode=False,
-                   basal_source='dss',basal_handler=basal_handler, basal_handler_params=basal_handler_params,
-                   bolus_source='dss', bolus_calculator_handler=standard_bolus_calculator)
+    rbg = ReplayBG(modality=modality,
+                   data=data,
+                   bw=bw,
+                   scenario=scenario,
+                   save_name=save_name,
+                   save_folder=save_folder,
+                   save_suffix=save_suffix,
+                   cgm_model='IG',
+                   analyze_results=False,
+                   verbose=False,
+                   plot_mode=False,
+                   basal_source='dss',
+                   basal_handler=basal_handler,
+                   basal_handler_params=basal_handler_params,
+                   bolus_source='dss',
+                   bolus_calculator_handler=standard_bolus_calculator)
 
     # Run it
     results = rbg.run(data=data, bw=bw, n_replay=1)
@@ -50,7 +62,6 @@ def simulate(basal_handler,
 
 def standard_bolus_calculator(glucose, meal_announcement, meal_type, hypotreatments, bolus, basal, time,
                                       time_index, dss):
-
     """
     Implements the default bolus calculator formula: B = CHO/CR + (GT-GC)/CF - IOB
 
