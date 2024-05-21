@@ -116,6 +116,18 @@ class T1DModel:
 
         # Model parameters
         self.model_parameters = ModelParameters(data, bw, self.is_single_meal)
+        mp = self.model_parameters
+        mp.kabs_B = 0.005110814284988449
+        mp.kabs_L = 0.011063239253370213
+        mp.kabs_D = 0.007958663029352612
+        mp.kabs_S = 0.012
+        mp.kabs_H = 0.012
+        mp.beta_B = 2.221380765470352
+        mp.beta_L = 7.5307087787199105
+        mp.beta_D = 4.012938139492219
+        mp.beta_S = 0
+        mp.kgri = 0.18
+        mp.kabs_avg = (mp.kabs_B+mp.kabs_L+mp.kabs_D)/3
 
         # Unknown parameters
         self.unknown_parameters = ['Gb', 'SG', 'ka2', 'kd', 'kempt']
@@ -247,7 +259,7 @@ class T1DModel:
         # CHANGE: discretized linear matrices
         self.Alinear = np.empty([9, 9])
         self.Blinear = np.empty([9, ])
-        self.hlinear = np.empty([9, ])
+        self.Clinear = np.empty([9, ])
         self.Mlinear = np.empty([9, ])
 
     # def step(self, k, meal, basal):
@@ -271,7 +283,7 @@ class T1DModel:
         T : discretization step
         Returns
         -------
-        A, B, h : discretized linear state equations
+        A, B, C : discretized linear state equations
         """
 
         x0 = x[0]
@@ -318,9 +330,9 @@ class T1DModel:
         # TODO: add meal effect
         self.Blinear[:] = [0, 0, 0, 0, 0, T/(1+T*mp.kd)*mp.to_mgkg, 0, 0, 0]
         self.Mlinear[:] = [0, 0, k1_T, 0, 0, 0, 0, 0, 0]
-        self.hlinear[:] = [ T*(dx0_dt - x0*df_dx0 - x1*df_dx1)/div, 0, 0, 0, 0, 0, 0, 0, 0]
+        self.Clinear[:] = [ T*(dx0_dt - x0*df_dx0 - x1*df_dx1)/div, 0, 0, 0, 0, 0, 0, 0, 0]
 
-        return self.Alinear, np.vstack((self.Blinear, self.Mlinear)).T, self.hlinear
+        return self.Alinear, np.vstack((self.Blinear, self.Mlinear)).T, self.Clinear
 
     def simulate(self, rbg_data, modality, rbg):
         """
@@ -371,6 +383,17 @@ class T1DModel:
         # Rename parameters for brevity
         mp = self.model_parameters
 
+        mp.kabs_B = 0.005110814284988449
+        mp.kabs_L = 0.011063239253370213
+        mp.kabs_D = 0.007958663029352612
+        mp.kabs_S = 0.012
+        mp.kabs_H = 0.012
+        mp.beta_B = 2.221380765470352
+        mp.beta_L = 7.5307087787199105
+        mp.beta_D = 4.012938139492219
+        mp.beta_S = 0
+        mp.kgri = 0.18
+
         # Utility flag for checking the modality (this boosts performance since the check will be done once)
         is_replay = modality == 'replay'
 
@@ -420,11 +443,11 @@ class T1DModel:
         else:
 
             # Shift the meal vector according to the delays
-            meal_B_delayed = np.append(np.zeros(shape=(mp.beta_B.__trunc__(),)), rbg_data.meal_B)
+            meal_B_delayed = np.append(np.zeros(shape=(mp.beta_L.__trunc__(),)), rbg_data.meal_B)
             meal_L_delayed = np.append(np.zeros(shape=(mp.beta_L.__trunc__(),)), rbg_data.meal_L)
-            meal_D_delayed = np.append(np.zeros(shape=(mp.beta_D.__trunc__(),)), rbg_data.meal_D)
-            meal_S_delayed = np.append(np.zeros(shape=(mp.beta_S.__trunc__(),)), rbg_data.meal_S)
-            self.meal_ALL_delayed = np.append(np.zeros(shape=(mp.beta_B.__trunc__() + mp.tau.__trunc__() + 500,)), rbg_data.meal_S)
+            meal_D_delayed = np.append(np.zeros(shape=(mp.beta_L.__trunc__(),)), rbg_data.meal_D)
+            meal_S_delayed = np.append(np.zeros(shape=(mp.beta_L.__trunc__(),)), rbg_data.meal_S)
+            self.meal_ALL_delayed = np.append(np.zeros(shape=(mp.beta_L.__trunc__() + mp.tau.__trunc__() + 500,)), rbg_data.meal_S)
             meal_H = rbg_data.meal_H * 1
 
             # Get the initial conditions
@@ -458,6 +481,7 @@ class T1DModel:
             self.ki1 = ki1
             self.ki2 = ki2
             self.kie = kie
+
             
             self.A[:] = [[k1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                           [k2, k3, 0, 0, 0, 0, 0, 0,
@@ -1047,8 +1071,6 @@ class ModelParameters:
         self.kgri = 0.18  # = kmax % 1/min
         self.kempt = 0.18  # 1/min
         self.f = 0.9  # dimensionless
-        self.kabs_avg = (self.kabs_B+self.kabs_L+self.kabs_D)/3
-
 
         # Exercise submodel parameters
         self.VO2rest = 0.33  # dimensionless, VO2rest was derived from heart rate round(66/(220-30))
@@ -1070,6 +1092,68 @@ class ModelParameters:
             self.G0 = data.glucose[idx]
         else:
             self.G0 = self.Gb
+
+    def print_mp(self):
+        # Initial conditions
+        self.Xpb = 0.0  # Insulin action initial condition
+        self.Qgutb = 0.0  # Intestinal content initial condition
+
+        # Glucose-insulin submodel parameters
+        print(self.VG)
+        print(self.SG)
+        print(self.Gb)
+        print(self.r1)
+        print(self.r2)
+        print(self.alpha)
+        # CHANGE: all meals use the same SI
+        print(self.SI)
+        print(self.SI_B)
+        print(self.SI_L)
+        print(self.SI_D)
+        print(self.p2)
+        print(self.u2ss)
+
+        # Subcutaneous insulin absorption submodel parameters
+        print(self.VI)
+        print(self.ke)
+        print(self.kd)
+        # model_parameters['ka1'] = 0.0034  # 1/min (virtually 0 in 77% of the cases)
+        #self.ka1 = 0.0
+        print(self.ka2)
+        print(self.tau)
+        print(self.Ipb)  # from eq. 5 steady-state
+
+        # Oral glucose absorption submodel parameters
+        print(self.kabs)
+        print(self.beta)
+        print(self.kabs_B)
+        print(self.kabs_L)
+        print(self.kabs_D)
+        print(self.kabs_S)
+        print(self.kabs_H)
+        print(self.beta_B)
+        print(self.beta_L)
+        print(self.beta_D)
+        print(self.beta_S)
+        print(self.kgri)
+        print(self.kempt)
+        print(self.f)
+
+        # Exercise submodel parameters
+        print(self.VO2rest)
+        print(self.VO2max)
+        print(self.e1)
+        print(self.e2)
+
+        # Patient specific parameters
+        print(self.bw)
+        print(self.to_g)
+        print(self.to_mgkg)
+
+        # Measurement noise specifics
+        print(self.SDn)
+
+
 
 
 @njit
@@ -1188,7 +1272,7 @@ def identify_multi_meal(tsteps, x, A, B, bolus_delayed, basal_delayed,
     for k in np.arange(1, tsteps):
         # Integration step
         x[:, k] = model_step_equations_multi_meal(A, bolus_delayed[k - 1] + basal_delayed[k - 1],
-                                                       meal_B_delayed[k - 1]*0.5, meal_L_delayed[k - 1],
+                                                       meal_B_delayed[k - 1], meal_L_delayed[k - 1],
                                                        meal_D_delayed[k - 1], meal_S_delayed[k - 1], meal_H[k - 1],
                                                        t_hour[k - 1], x[:, k - 1], B,
                                                        r1, r2, kgri, kd, p2, SI_B, VI,
@@ -1282,6 +1366,52 @@ def model_step_equations_multi_meal(A, I, cho_b, cho_l, cho_d, cho_s, cho_h, hou
     --------
     None
     """
+
+    # xsimple = np.array([0.0]*9)
+    # xsimple[0:2] = xkm1[:2]
+    # for n in range(5):
+    #     xsimple[2] += xkm1[2 + n*3]
+    #     xsimple[3] += xkm1[3 + n*3]
+    #     xsimple[4] += xkm1[4 + n*3]
+    # xsimple[5:] = xkm1[17:]
+
+    # A, B, C, M = model.get_state_equations(1, xss)
+    # meal = cho_b+cho_l+cho_d+cho_s+cho_h
+    # # global ic
+    # # print(ic, ": ")
+    # # print(xsimple)
+    # # print(I)
+    # # print(meal)
+    # # ic+=1
+    # x_ret = A @ xsimple + B*I + M*meal + C
+    # # x_ret = A_ @ xsimple + B_*I + M_*meal + C_
+
+    # xk = xkm1
+
+    # xk[0] = x_ret[0]
+    # xk[1] = x_ret[1]
+    # xk[2] = x_ret[2]
+    # xk[3] = x_ret[3]
+    # xk[4] = x_ret[4]
+    # xk[5] = 0
+    # xk[6] = 0
+    # xk[7] = 0
+    # xk[8] = 0
+    # xk[9] = 0
+    # xk[10] = 0
+    # xk[11] = 0
+    # xk[12] = 0
+    # xk[13] = 0
+    # xk[14] = 0
+    # xk[15] = 0
+    # xk[16] = 0
+    # xk[17] = x_ret[5]
+    # xk[18] = x_ret[6]
+    # xk[19] = x_ret[7]
+    # xk[20] = x_ret[8]
+    
+    # if (1):
+    #     return xk
     
     xk = xkm1
 
@@ -1316,6 +1446,7 @@ def model_step_equations_multi_meal(A, I, cho_b, cho_l, cho_d, cho_s, cho_h, hou
     xk[20] = (alpha * xkm1[20] + xkm1[0]) / (1 + alpha) #CHANGE
 
     return xk
+
 
 @njit
 def log_prior_single_meal(VG, theta):
