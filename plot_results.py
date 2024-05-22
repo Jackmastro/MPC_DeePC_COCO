@@ -30,9 +30,9 @@ def plot_results(glucose, insulin_bolus, i, m, time):
     plt.setp(stemlines, 'color', (50.0 / 255, 205.0 / 255, 50.0 / 255))
     plt.setp(markerline, 'color', (50.0 / 255, 205.0 / 255, 50.0 / 255))
 
-    ax[2].plot(time, i, color='black', linewidth=2, label='Basal insulin [U/h]')
-    ax[2].axhline(y=0.0022, color='red', linewidth=2, linestyle='--', label='uss')
-    ax[2].axhline(y=0.04, color='black', linewidth=2, linestyle='--', label='max')
+    ax[2].plot(time, i * 60, color='black', linewidth=2, label='Basal insulin [U/h]')
+    ax[2].axhline(y=0.0022 * 60, color='blue', linewidth=2, linestyle='--', label='uss')
+    ax[2].axhline(y=0.04 * 60, color='black', linewidth=2, linestyle='--', label='max')
 
     ax[2].grid()
     ax[2].legend()
