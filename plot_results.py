@@ -38,3 +38,4 @@ def plot_results(glucose, insulin_bolus, i, m, time):
     ax[2].legend()
 
     plt.show()
+    plt.close()
