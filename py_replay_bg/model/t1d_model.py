@@ -258,7 +258,8 @@ class T1DModel:
     
     def get_discretized_meals(self, initial_time_step, duration, T):
         meal = np.zeros((duration//T, ))
-        for k in range((duration)):
+        duration_limited = min(len(self.meal_ALL_delayed) - initial_time_step, duration)
+        for k in range((duration_limited)):
             meal[k//T] += self.meal_ALL_delayed[initial_time_step+k]
         return meal
 
